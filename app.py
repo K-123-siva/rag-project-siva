@@ -1,7 +1,9 @@
 # app.py
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
+import os
+import sys
+
+# Add src to Python path
+sys.path.append('src')
 
 import streamlit as st
 from src.document_processing import process_pdfs, get_retriever
@@ -9,9 +11,9 @@ from src.llm_chain import create_rag_chain
 from src.utils import save_uploaded_files,reset_context
 from src.config import Config
 from src.logger import setup_logger
-logger = setup_logger(__name__)
-import os
 from dotenv import load_dotenv
+
+logger = setup_logger(__name__)
 load_dotenv()
 
 google_api_key = os.getenv("GOOGLE_API_KEY")
