@@ -9,9 +9,10 @@ from src.config import Config
 from src.logger import setup_logger
 logger = setup_logger(__name__)
 import os
+import tempfile
 
 def process_pdfs(pdf_paths):
-    """Process multiple PDF files into a vector store (fully synchronous version)."""
+    """Process multiple PDF files into a vector store (cloud-compatible in-memory version)."""
     documents = []
     
     for pdf_path in pdf_paths:
@@ -66,14 +67,26 @@ def process_pdfs(pdf_paths):
         logger.error("Failed to create embeddings: %s", str(e))
         raise ValueError(f"Embedding model creation failed: {str(e)}")
     
-    # Create Chroma vectorstore with synchronous client
+    # Create Chroma vectorstore - IN MEMORY for cloud deployment
     try:
-        vectorstore = Chroma.from_documents(
-            documents=splits,
-            embedding=embeddings,
-            persist_directory=Config.PERSIST_DIR,
-        )
-        logger.info("Vectorstore created with %d chunks", len(splits))
+        if Config.DEPLOYMENT_MODE == "cloud":
+            # In-memory vectorstore for cloud deployment (no persistence)
+            logger.info("Creating in-memory vectorstore for cloud deployment")
+            vectorstore = Chroma.from_documents(
+                documents=splits,
+                embedding=embeddings,
+                # No persist_directory - keeps it in memory only
+            )
+        else:
+            # Local development with persistence
+            logger.info("Creating persistent vectorstore for local deployment")
+            vectorstore = Chroma.from_documents(
+                documents=splits,
+                embedding=embeddings,
+                persist_directory=Config.PERSIST_DIR,
+            )
+        
+        logger.info("Vectorstore created successfully with %d chunks", len(splits))
         
     except Exception as e:
         logger.error("Failed to create vectorstore: %s", str(e))
