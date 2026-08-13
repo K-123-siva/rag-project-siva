@@ -45,8 +45,13 @@ with st.sidebar:
     )
     
     if uploaded_files and st.button("Process PDFs"):
-        reset_context()  # Reset context before processing new files
+        if len(uploaded_files) == 0:
+            st.error("Please select PDF files to upload.")
+            st.stop()
+            
+        reset_context()  # Clear previous context
         logger.info("User uploaded %d PDF(s)", len(uploaded_files))
+        
         try:
             with st.spinner("Processing PDFs..."):
                 pdf_paths = save_uploaded_files(uploaded_files)
@@ -54,22 +59,31 @@ with st.sidebar:
                 retriever = get_retriever(vectorstore)
                 rag_chain = create_rag_chain(retriever)
 
+                # Store in session state
                 st.session_state.vectorstore = vectorstore
                 st.session_state.rag_chain = rag_chain
-                logger.info("RAG chain created successfully with %d documents", len(vectorstore._collection.get()['ids']))
-                st.success("PDFs processed successfully!")
+                st.session_state.processed_files = [f.name for f in uploaded_files]
+                
+                logger.info("RAG chain created successfully!")
+                st.success(f"✅ Successfully processed {len(uploaded_files)} PDF(s)! You can now ask questions.")
+                st.balloons()
+                
         except Exception as e:
+            logger.error(f"Processing error: {str(e)}")
             st.error(f"Error: {str(e)}")
+    
+    # Show current status
+    if st.session_state.vectorstore and hasattr(st.session_state, 'processed_files'):
+        st.success(f"📄 Active: {', '.join(st.session_state.processed_files)}")
+        st.info("✅ Ready to answer questions!")
+    else:
+        st.info("👆 Upload PDFs above to get started")
     
     # Clear context if no file is uploaded
     if not uploaded_files and st.session_state.vectorstore:
-        reset_context()
-        st.success("Context cleared because no files are uploaded.")
-
-    # Manual reset button
-    if st.button("Clear All Context"):
-        reset_context()
-        st.success("Context and uploaded files cleared.")
+        if st.button("🗑️ Clear Context"):
+            reset_context()
+            st.success("Context cleared.")
 
 
 st.title("🧠 NeuroQuery - FREE AI Document Assistant")
