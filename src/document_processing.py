@@ -18,20 +18,61 @@ def process_pdfs(pdf_paths):
     for pdf_path in pdf_paths:
         try:
             logger.info("Loading PDF: %s", pdf_path)
+            
+            # Check if file exists and has content
+            if not os.path.exists(pdf_path):
+                logger.error("File does not exist: %s", pdf_path)
+                continue
+                
+            file_size = os.path.getsize(pdf_path)
+            if file_size == 0:
+                logger.error("File is empty: %s", pdf_path)
+                continue
+                
+            logger.info("PDF file size: %d bytes", file_size)
+            
             loader = PyPDFLoader(pdf_path)
             pages = loader.load()
+            logger.info("Raw pages loaded: %d", len(pages))
             
-            # Filter out empty pages
-            valid_pages = [page for page in pages if page.page_content.strip()]
+            # Debug: log first few characters of each page
+            for i, page in enumerate(pages[:3]):  # Check first 3 pages
+                content_preview = page.page_content[:200].strip()
+                logger.info("Page %d preview: %s", i, content_preview)
+            
+            # Filter out empty pages (be more lenient)
+            valid_pages = []
+            for page in pages:
+                content = page.page_content.strip()
+                if len(content) > 10:  # At least 10 characters
+                    valid_pages.append(page)
+                else:
+                    logger.warning("Skipping page with minimal content: %s", content[:50])
+            
             documents.extend(valid_pages)
             logger.info("Loaded %d valid pages from %s", len(valid_pages), pdf_path)
             
         except Exception as e:
             logger.error("Error processing %s: %s", pdf_path, str(e))
-            continue
+            # Try alternative PDF readers if PyPDF fails
+            try:
+                logger.info("Trying alternative PDF processing for: %s", pdf_path)
+                from langchain_community.document_loaders import UnstructuredPDFLoader
+                alt_loader = UnstructuredPDFLoader(pdf_path)
+                alt_pages = alt_loader.load()
+                
+                valid_alt_pages = [page for page in alt_pages if page.page_content.strip()]
+                documents.extend(valid_alt_pages)
+                logger.info("Alternative loader success: %d pages from %s", len(valid_alt_pages), pdf_path)
+                
+            except Exception as alt_e:
+                logger.error("Alternative loader also failed for %s: %s", pdf_path, str(alt_e))
+                continue
+    
+    logger.info("Total documents collected: %d", len(documents))
     
     if not documents:
-        raise ValueError("No valid documents found in the uploaded PDFs")
+        raise ValueError("No valid documents found in the uploaded PDFs. Please check if the PDFs contain readable text content.")
         
     logger.info("Total loaded documents: %d", len(documents))
     

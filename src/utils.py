@@ -47,10 +47,37 @@ def save_uploaded_files(uploaded_files):
 
     for uploaded_file in uploaded_files:
         if uploaded_file.name.lower().endswith('.pdf'):
+            # Check file size before saving
+            file_size = len(uploaded_file.getbuffer())
+            if file_size == 0:
+                logger.error("Uploaded file is empty: %s", uploaded_file.name)
+                continue
+                
+            logger.info("Processing file: %s (size: %d bytes)", uploaded_file.name, file_size)
+            
             file_path = os.path.join(temp_dir, uploaded_file.name)
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            file_paths.append(file_path)
+            try:
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
+                
+                # Verify file was written correctly
+                written_size = os.path.getsize(file_path)
+                if written_size != file_size:
+                    logger.error("File size mismatch for %s: expected %d, got %d", 
+                               uploaded_file.name, file_size, written_size)
+                    continue
+                    
+                file_paths.append(file_path)
+                logger.info("Successfully saved: %s", file_path)
+                
+            except Exception as e:
+                logger.error("Error saving file %s: %s", uploaded_file.name, str(e))
+                continue
+        else:
+            logger.warning("Skipping non-PDF file: %s", uploaded_file.name)
+
+    if not file_paths:
+        raise ValueError("No valid PDF files were saved. Please ensure you're uploading valid PDF files.")
 
     logger.info("Saved %d PDF(s) to temporary directory: %s", len(file_paths), temp_dir)
     return file_paths
