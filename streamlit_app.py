@@ -1,4 +1,4 @@
-# streamlit_app.py - Main entry point for Streamlit Cloud
+# streamlit_app.py - 🆓 100% FREE RAG System 
 import asyncio
 import os
 import sys
@@ -17,14 +17,11 @@ from dotenv import load_dotenv
 logger = setup_logger(__name__)
 load_dotenv()
 
-google_api_key = os.getenv("GOOGLE_API_KEY")
-if google_api_key:
-    os.environ["GOOGLE_API_KEY"] = google_api_key
-else:
-    logger.error("GOOGLE_API_KEY not found in environment variables.")
+# 🆓 No API keys needed! Using FREE HuggingFace models
+logger.info("🆓 Starting 100% FREE RAG system - no API costs!")
 
 st.set_page_config(
-    page_title="NeuroQuery - AI Document Assistant",
+    page_title="NeuroQuery - 🆓 FREE AI Document Assistant",
     page_icon="🧠",
     layout="centered",
     initial_sidebar_state="expanded"
@@ -75,7 +72,12 @@ with st.sidebar:
         st.success("Context and uploaded files cleared.")
 
 
-st.title("📄 PDF Question Answering System")
+st.title("🧠 NeuroQuery - FREE AI Document Assistant")
+st.markdown("### 🆓 **100% FREE** - No API Keys Required!")
+st.markdown("*Powered by free Hugging Face models - no costs, no quotas, no limits!*")
+
+# Add usage instructions
+st.info("📋 **How to use:** Upload your PDF files, ask questions, and get AI-powered answers - completely free!")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
