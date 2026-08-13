@@ -1,5 +1,8 @@
 from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+try:
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from src.config import Config
@@ -13,40 +16,68 @@ def process_pdfs(pdf_paths):
     
     for pdf_path in pdf_paths:
         try:
+            logger.info("Loading PDF: %s", pdf_path)
             loader = PyPDFLoader(pdf_path)
             pages = loader.load()
-            documents.extend(pages)
+            
+            # Filter out empty pages
+            valid_pages = [page for page in pages if page.page_content.strip()]
+            documents.extend(valid_pages)
+            logger.info("Loaded %d valid pages from %s", len(valid_pages), pdf_path)
+            
         except Exception as e:
-            print(f"Error processing {pdf_path}: {str(e)}")
+            logger.error("Error processing %s: %s", pdf_path, str(e))
             continue
-    logger.info("Loaded %d documents from %d PDF files", len(documents), len(pdf_paths))
+    
+    if not documents:
+        raise ValueError("No valid documents found in the uploaded PDFs")
+        
+    logger.info("Total loaded documents: %d", len(documents))
+    
     # Split documents
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=Config.CHUNK_SIZE,
         chunk_overlap=Config.CHUNK_OVERLAP,
     )
     splits = text_splitter.split_documents(documents)
+    
+    if not splits:
+        raise ValueError("No text chunks created from documents")
+        
     logger.info("Split %d documents into %d chunks", len(documents), len(splits))
+    
     # Create embeddings using free Hugging Face model
     try:
-        logger.info("Creating embeddings with free Hugging Face model: %s", Config.EMBEDDING_MODEL)
+        logger.info("Creating embeddings with model: %s", Config.EMBEDDING_MODEL)
         embeddings = HuggingFaceEmbeddings(
             model_name=Config.EMBEDDING_MODEL,
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
-        logger.info("Using embedding model: %s", Config.EMBEDDING_MODEL)
+        
+        # Test embedding creation with a sample text
+        test_embedding = embeddings.embed_query("test")
+        if not test_embedding:
+            raise ValueError("Embedding model is not working properly")
+            
+        logger.info("Embedding model loaded successfully")
+        
     except Exception as e:
         logger.error("Failed to create embeddings: %s", str(e))
-        raise ValueError("Embedding model creation failed. Check your model configuration.")
+        raise ValueError(f"Embedding model creation failed: {str(e)}")
     
     # Create Chroma vectorstore with synchronous client
-    vectorstore = Chroma.from_documents(
-        documents=splits,
-        embedding=embeddings,
-        persist_directory=Config.PERSIST_DIR,
-    )
-    logger.info("Vectorstore created with %d chunks", len(splits))
+    try:
+        vectorstore = Chroma.from_documents(
+            documents=splits,
+            embedding=embeddings,
+            persist_directory=Config.PERSIST_DIR,
+        )
+        logger.info("Vectorstore created with %d chunks", len(splits))
+        
+    except Exception as e:
+        logger.error("Failed to create vectorstore: %s", str(e))
+        raise ValueError(f"Vectorstore creation failed: {str(e)}")
     
     return vectorstore
 
