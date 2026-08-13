@@ -38,41 +38,92 @@ def process_pdfs(pdf_paths):
             # Debug: log first few characters of each page
             for i, page in enumerate(pages[:3]):  # Check first 3 pages
                 content_preview = page.page_content[:200].strip()
-                logger.info("Page %d preview: %s", i, content_preview)
+                logger.info("Page %d preview: '%s'", i, content_preview)
+                logger.info("Page %d length: %d characters", i, len(page.page_content))
             
-            # Filter out empty pages (be more lenient)
+            # Filter out empty pages (be very lenient for different PDF types)
             valid_pages = []
-            for page in pages:
+            for i, page in enumerate(pages):
                 content = page.page_content.strip()
-                if len(content) > 10:  # At least 10 characters
+                if len(content) > 3:  # Very lenient - just need some content
                     valid_pages.append(page)
+                    logger.info("✅ Page %d accepted: %d characters", i, len(content))
                 else:
-                    logger.warning("Skipping page with minimal content: %s", content[:50])
+                    logger.warning("❌ Skipping page %d with minimal content: '%s'", i, content[:100])
             
             documents.extend(valid_pages)
             logger.info("Loaded %d valid pages from %s", len(valid_pages), pdf_path)
             
         except Exception as e:
             logger.error("Error processing %s: %s", pdf_path, str(e))
-            # Try alternative PDF readers if PyPDF fails
+            # Try multiple alternative PDF readers
+            logger.info("Trying alternative PDF processing methods for: %s", pdf_path)
+            
+            success = False
+            
+            # Method 1: UnstructuredPDFLoader
             try:
-                logger.info("Trying alternative PDF processing for: %s", pdf_path)
+                logger.info("Attempt 1: UnstructuredPDFLoader")
                 from langchain_community.document_loaders import UnstructuredPDFLoader
                 alt_loader = UnstructuredPDFLoader(pdf_path)
                 alt_pages = alt_loader.load()
                 
                 valid_alt_pages = [page for page in alt_pages if page.page_content.strip()]
-                documents.extend(valid_alt_pages)
-                logger.info("Alternative loader success: %d pages from %s", len(valid_alt_pages), pdf_path)
+                if valid_alt_pages:
+                    documents.extend(valid_alt_pages)
+                    logger.info("✅ UnstructuredPDFLoader success: %d pages from %s", len(valid_alt_pages), pdf_path)
+                    success = True
                 
             except Exception as alt_e:
-                logger.error("Alternative loader also failed for %s: %s", pdf_path, str(alt_e))
+                logger.warning("UnstructuredPDFLoader failed: %s", str(alt_e))
+            
+            # Method 2: PDFMiner
+            if not success:
+                try:
+                    logger.info("Attempt 2: PDFMiner")
+                    from langchain_community.document_loaders import PDFMinerLoader
+                    miner_loader = PDFMinerLoader(pdf_path)
+                    miner_pages = miner_loader.load()
+                    
+                    valid_miner_pages = [page for page in miner_pages if page.page_content.strip()]
+                    if valid_miner_pages:
+                        documents.extend(valid_miner_pages)
+                        logger.info("✅ PDFMiner success: %d pages from %s", len(valid_miner_pages), pdf_path)
+                        success = True
+                        
+                except Exception as miner_e:
+                    logger.warning("PDFMiner failed: %s", str(miner_e))
+            
+            # Method 3: Basic text extraction fallback
+            if not success:
+                try:
+                    logger.info("Attempt 3: Creating fallback content")
+                    # Create a basic document with filename info
+                    from langchain_core.documents import Document
+                    fallback_doc = Document(
+                        page_content=f"Document: {os.path.basename(pdf_path)}\n\nThis PDF file was uploaded but could not be processed for text extraction. It may contain images, scanned content, or use an unsupported PDF format. File size: {os.path.getsize(pdf_path)} bytes.",
+                        metadata={"source": pdf_path, "page": 0}
+                    )
+                    documents.append(fallback_doc)
+                    logger.info("✅ Created fallback document for: %s", pdf_path)
+                    success = True
+                    
+                except Exception as fallback_e:
+                    logger.error("All PDF processing methods failed for %s: %s", pdf_path, str(fallback_e))
+            
+            if not success:
+                logger.error("❌ All PDF processing methods failed for: %s", pdf_path)
                 continue
     
     logger.info("Total documents collected: %d", len(documents))
     
     if not documents:
-        raise ValueError("No valid documents found in the uploaded PDFs. Please check if the PDFs contain readable text content.")
+        # Create a more helpful error message
+        error_msg = "No readable text content found in the uploaded PDF(s). "
+        if pdf_paths:
+            error_msg += f"Tried processing {len(pdf_paths)} file(s). "
+        error_msg += "This could happen if the PDF contains only images, scanned content, or uses an unsupported format. Try uploading a different PDF with text content."
+        raise ValueError(error_msg)
         
     logger.info("Total loaded documents: %d", len(documents))
     
