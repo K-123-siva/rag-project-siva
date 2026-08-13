@@ -1,8 +1,8 @@
 from langchain_community.llms import Ollama
 from langchain_community.llms import HuggingFacePipeline
-from langchain.chains.retrieval import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
 from src.config import Config
 from src.logger import setup_logger
 import os
@@ -49,35 +49,41 @@ def create_rag_chain(retriever):
             llm = FakeListLLM(responses=responses)
             logger.info("Using fallback demo LLM")
 
-    system_prompt = """
-    You are an expert assistant specialized in analyzing PDF documents with a strong focus on statistics and probability. Follow these steps:
+    # Create a simple RAG chain using RunnablePassthrough
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
 
-    1. **Understand the User Query**: Break down the user's intent and what they want to know.
-    2. **Extract from Context**: Refer only to the provided document content for relevant information.
-    3. **Be Precise**:
-    - For definitions, give exact, concise meanings.
-    - For explanations, walk through concepts clearly and thoroughly.
-    - For calculations, show detailed step-by-step reasoning.
-    - For summaries, outline key points using bullet format if needed.
+    template = """You are an expert assistant specialized in analyzing PDF documents with a strong focus on statistics and probability.
 
-    4. **Respond like a tutor**: Explain in a simple, educational tone.
+Use the following pieces of context to answer the question at the end. If you don't know the answer, just say that you don't know, don't try to make up an answer.
 
-    Context:
-    {context}
+Context:
+{context}
 
-    User Question:
-    {input}
-    """
+Question: {question}
 
-    logger.info("Creating RAG chain with deployment mode: %s", Config.DEPLOYMENT_MODE)
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("human", "{input}"),
-    ])
+Answer: """
 
-    question_answer_chain = create_stuff_documents_chain(llm, prompt=prompt)
-
-    return create_retrieval_chain(
-        retriever=retriever,
-        combine_docs_chain=question_answer_chain,
+    prompt = ChatPromptTemplate.from_template(template)
+    
+    # Simple RAG chain
+    rag_chain = (
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm
+        | StrOutputParser()
     )
+    
+    logger.info("Created simple RAG chain with deployment mode: %s", Config.DEPLOYMENT_MODE)
+    
+    # Wrap to match expected interface
+    class SimpleRAGChain:
+        def __init__(self, chain):
+            self.chain = chain
+            
+        def invoke(self, inputs):
+            question = inputs.get("input", "")
+            answer = self.chain.invoke(question)
+            return {"answer": answer}
+    
+    return SimpleRAGChain(rag_chain)

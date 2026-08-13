@@ -10,4 +10,3 @@ transformers>=4.30.0
 torch>=2.0.0
 unstructured>=0.10.0
 pdfminer.six>=20221105
-langchain-text-splitters>=0.0.1
