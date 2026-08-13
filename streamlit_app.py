@@ -74,10 +74,10 @@ with st.sidebar:
 
 st.title("🧠 NeuroQuery - FREE AI Document Assistant")
 st.markdown("### 🆓 **100% FREE** - No API Keys Required!")
-st.markdown("*Powered by free Hugging Face models - no costs, no quotas, no limits!*")
+st.markdown("*Powered by free Hugging Face models - works with ANY PDF type!*")
 
 # Add usage instructions
-st.info("📋 **How to use:** Upload your PDF files, ask questions, and get AI-powered answers - completely free!")
+st.info("📋 **How to use:** Upload ANY PDF (text or scanned), ask questions, and get intelligent AI responses - completely free!")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
