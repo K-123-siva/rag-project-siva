@@ -1,6 +1,6 @@
 from langchain_community.llms import Ollama
 from langchain_community.llms import HuggingFacePipeline
-from langchain.chains import create_retrieval_chain
+from langchain.chains.retrieval import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 from src.config import Config
@@ -40,7 +40,7 @@ def create_rag_chain(retriever):
         except Exception as e:
             logger.error(f"Failed to load HuggingFace model: {e}")
             # Fallback to a simple response system
-            from langchain.llms.fake import FakeListLLM
+            from langchain_community.llms.fake import FakeListLLM
             responses = [
                 "Based on the uploaded document content, I can provide detailed analysis of the key concepts and topics covered.",
                 "The document contains important information that I can summarize and explain clearly for you.",
