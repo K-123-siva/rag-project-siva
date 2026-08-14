@@ -9,8 +9,8 @@ class Config:
     # Choose deployment mode based on environment
     DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "local")  # "local" or "cloud"
     
-    # Local Ollama settings (fallback to HuggingFace if Ollama not available)
-    LLM_MODEL_LOCAL = "tinyllama:1.1b"  # For local Ollama
+    # Local Ollama settings - Using better model for accuracy
+    LLM_MODEL_LOCAL = "llama3.2:3b"  # Better model for accurate extraction
     
     # Cloud: 100% FREE HuggingFace models (no API keys required!)
     LLM_MODEL_CLOUD = "microsoft/DialoGPT-medium"  # Free conversational model
@@ -18,11 +18,11 @@ class Config:
     # Use appropriate model based on deployment
     LLM_MODEL = LLM_MODEL_LOCAL if DEPLOYMENT_MODE == "local" else LLM_MODEL_CLOUD
     
-    CHUNK_SIZE = 800  # Smaller for HuggingFace models
-    CHUNK_OVERLAP = 150
-    SEARCH_K = 4  # Reduced for faster processing
-    TEMPERATURE = 0.7
-    MAX_TOKENS = 150  # Optimized for free models
+    CHUNK_SIZE = 1000  # Larger chunks for better context
+    CHUNK_OVERLAP = 200  # More overlap to preserve context
+    SEARCH_K = 8  # More chunks for comprehensive answers
+    TEMPERATURE = 0.1  # Lower temperature for more accurate extraction
+    MAX_TOKENS = 600  # More tokens for detailed answers
     PERSIST_DIR = "db"
     MAX_PAGES = 300
     MAX_FILES = 3

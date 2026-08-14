@@ -19,9 +19,13 @@ A **completely free** document question answering system that extracts knowledge
 
 ## 🚀 Live Demo
 
-**Deploy instantly to Streamlit Cloud (100% FREE):**
+**Try it now - Deployed on Streamlit Cloud (100% FREE):**
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/yourusername/neuroquery)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://neuroquery-rag.streamlit.app/)
+
+🔗 **Live App:** [https://neuroquery-rag.streamlit.app/](https://neuroquery-rag.streamlit.app/)
+
+📊 **Streamlit Cloud Dashboard:** [https://share.streamlit.io/](https://share.streamlit.io/)
 
 ## 🛠️ Technology Stack
 

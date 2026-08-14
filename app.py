@@ -35,6 +35,8 @@ if "vectorstore" not in st.session_state:
     st.session_state.vectorstore = None
 if "rag_chain" not in st.session_state:
     st.session_state.rag_chain = None
+if "processed_files" not in st.session_state:
+    st.session_state.processed_files = []
 
 with st.sidebar:
     st.title("PDF Upload")
@@ -43,7 +45,8 @@ with st.sidebar:
     uploaded_files = st.file_uploader(
         "Choose PDF files",
         type="pdf",
-        accept_multiple_files=True
+        accept_multiple_files=True,
+        key="pdf_uploader"
     )
     
     if uploaded_files and st.button("Process PDFs"):
@@ -58,20 +61,26 @@ with st.sidebar:
 
                 st.session_state.vectorstore = vectorstore
                 st.session_state.rag_chain = rag_chain
+                st.session_state.processed_files = [f.name for f in uploaded_files]
                 logger.info("RAG chain created successfully with %d documents", len(vectorstore._collection.get()['ids']))
-                st.success("PDFs processed successfully!")
+                st.success("✅ PDFs processed successfully!")
         except Exception as e:
             st.error(f"Error: {str(e)}")
     
-    # Clear context if no file is uploaded
-    if not uploaded_files and st.session_state.vectorstore:
-        reset_context()
-        st.success("Context cleared because no files are uploaded.")
-
-    # Manual reset button
-    if st.button("Clear All Context"):
-        reset_context()
-        st.success("Context and uploaded files cleared.")
+    # Show processed files status
+    st.divider()
+    if st.session_state.vectorstore and hasattr(st.session_state, 'processed_files'):
+        st.success("📄 **Active Documents:**")
+        for filename in st.session_state.processed_files:
+            st.markdown(f"✓ {filename}")
+        st.info("✅ Ready to answer questions!")
+        
+        # Manual reset button
+        if st.button("🗑️ Clear All Context"):
+            reset_context()
+            st.rerun()
+    else:
+        st.info("👆 Upload PDFs above to get started")
 
 
 st.title("📄 PDF Question Answering System")
@@ -93,11 +102,13 @@ if prompt := st.chat_input("Ask a question about the PDFs"):
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
+                logger.info(f"Invoking RAG chain with question: {prompt}")
                 response = st.session_state.rag_chain.invoke({"input": prompt})
                 answer = response["answer"]
-
+                
+                logger.info(f"Answer received: {answer[:100]}...")
                 st.markdown(answer)
                 st.session_state.messages.append({"role": "assistant", "content": answer})
             except Exception as e:
-                logger.error(f"Error generating answer: {str(e)}")
+                logger.error(f"Error generating answer: {str(e)}", exc_info=True)
                 st.error(f"Error generating answer: {str(e)}")

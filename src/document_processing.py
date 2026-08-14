@@ -12,7 +12,7 @@ import os
 import tempfile
 
 def process_pdfs(pdf_paths):
-    """SIMPLE, BULLETPROOF PDF processing - always works!"""
+    """Enhanced PDF processing with better text extraction"""
     documents = []
     
     for pdf_path in pdf_paths:
@@ -21,79 +21,63 @@ def process_pdfs(pdf_paths):
             loader = PyPDFLoader(pdf_path)
             pages = loader.load()
             
-            # Very simple validation - just check if we have pages
-            if pages:
-                # Take all pages, be very lenient
-                for i, page in enumerate(pages):
-                    if len(page.page_content.strip()) > 0:
-                        documents.append(page)
-                        logger.info("✅ Added page %d", i)
+            logger.info(f"Loaded {len(pages)} pages from PDF")
+            
+            # Process each page and extract content
+            valid_pages = 0
+            for i, page in enumerate(pages):
+                content = page.page_content.strip()
                 
-            # If no text found, create helpful fallback
-            if not any(len(page.page_content.strip()) > 10 for page in pages):
-                logger.info("Creating fallback content for: %s", pdf_path)
+                # Log first 500 chars of each page for debugging
+                if content:
+                    logger.info(f"Page {i+1} content preview: {content[:200]}...")
+                    documents.append(page)
+                    valid_pages += 1
+                else:
+                    logger.warning(f"Page {i+1} has no text content")
+            
+            logger.info(f"✅ Successfully extracted {valid_pages} valid pages from {os.path.basename(pdf_path)}")
+            
+            # Only create fallback if NO pages had ANY content
+            if valid_pages == 0:
+                logger.warning(f"No text content found in PDF: {pdf_path}")
                 from langchain_core.documents import Document
                 
                 filename = os.path.basename(pdf_path)
-                fallback_content = f"""Document: {filename}
-
-This document has been successfully uploaded to the system. Based on the filename, this appears to be an allotment-related document.
-
-Allotment documents typically contain:
-- Property allocation details
-- Beneficiary information  
-- Plot numbers and specifications
-- Location and area details
-- Administrative approvals
-- Legal compliance information
-
-You can ask me questions about:
-- Allotment processes and procedures
-- Property allocation systems
-- Documentation requirements
-- Legal aspects of property allotment
-- Administrative procedures
-
-Feel free to ask any questions about allotment processes or this document type!"""
-
                 fallback_doc = Document(
-                    page_content=fallback_content,
+                    page_content=f"Document '{filename}' was uploaded but no text could be extracted. It may be an image-based PDF or scanned document.",
                     metadata={"source": pdf_path, "filename": filename}
                 )
                 documents.append(fallback_doc)
                 
         except Exception as e:
-            logger.warning("Error with %s, creating fallback: %s", pdf_path, str(e))
-            # Always create something useful
+            logger.error(f"Failed to process {pdf_path}: {str(e)}", exc_info=True)
             from langchain_core.documents import Document
             filename = os.path.basename(pdf_path)
             
-            simple_fallback = f"""Document: {filename}
-
-I've received your document upload. While I couldn't extract the text directly, I can still help you with questions about:
-
-- Document analysis and processing
-- Allotment and property procedures  
-- Administrative processes
-- General information about document types
-
-Please ask me any questions about your document or related topics!"""
-
-            simple_doc = Document(
-                page_content=simple_fallback,
-                metadata={"source": pdf_path, "filename": filename}
+            error_doc = Document(
+                page_content=f"Error processing document '{filename}': {str(e)}",
+                metadata={"source": pdf_path, "filename": filename, "error": str(e)}
             )
-            documents.append(simple_doc)
+            documents.append(error_doc)
     
-    logger.info("Total documents created: %d", len(documents))
+    logger.info(f"Total documents extracted: {len(documents)}")
     
-    # Split documents
+    if not documents:
+        raise ValueError("No documents were successfully processed from the uploaded PDFs")
+    
+    # Split documents into chunks
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=Config.CHUNK_SIZE,
         chunk_overlap=Config.CHUNK_OVERLAP,
+        separators=["\n\n", "\n", ". ", " ", ""]
     )
     splits = text_splitter.split_documents(documents)
-    logger.info("Created %d text chunks", len(splits))
+    logger.info(f"Created {len(splits)} text chunks from {len(documents)} documents")
+    
+    # Log sample of chunks for debugging
+    if splits:
+        logger.info(f"Sample chunk preview: {splits[0].page_content[:150]}...")
     
     # Create embeddings - simple and reliable
     try:
@@ -117,8 +101,16 @@ Please ask me any questions about your document or related topics!"""
         raise ValueError(f"System error: {str(e)}")
 
 def get_retriever(vectorstore):
-    logger.info("Creating retriever")
-    return vectorstore.as_retriever(
+    """Create retriever with optimized search parameters"""
+    logger.info("Creating retriever with similarity search")
+    
+    # Increase k to get more context chunks for better answers
+    retriever = vectorstore.as_retriever(
         search_type="similarity",
-        search_kwargs={"k": Config.SEARCH_K}
+        search_kwargs={
+            "k": 8  # Retrieve more chunks for comprehensive answers
+        }
     )
+    
+    logger.info("✅ Retriever created successfully")
+    return retriever
