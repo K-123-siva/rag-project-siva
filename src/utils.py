@@ -12,11 +12,11 @@ def reset_context():
     st.session_state.rag_chain = None
     st.session_state.messages = []
     
-    # Only try to clean up persistent directory in local mode
-    if Config.DEPLOYMENT_MODE == "local" and os.path.exists(Config.PERSIST_DIR):
+    # Clean up persistent directory if it exists (not needed for cloud, but safe)
+    if os.path.exists(Config.PERSIST_DIR):
         try:
             shutil.rmtree(Config.PERSIST_DIR)
-            logger.info("Cleaned up local persistent directory")
+            logger.info("Cleaned up persistent directory")
         except Exception as e:
             logger.warning("Could not clean up persistent directory: %s", e)
     

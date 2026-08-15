@@ -1,22 +1,33 @@
-from langchain_community.llms import Ollama
+from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from src.config import Config
 from src.logger import setup_logger
+import os
 
 logger = setup_logger(__name__)
 
 def create_rag_chain(retriever):
-    """Create RAG chain using Ollama for accurate document extraction"""
+    """Create RAG chain using Groq for fast cloud deployment"""
     
-    logger.info(f"Using Ollama model: {Config.LLM_MODEL} for document analysis")
+    # Get Groq API key from environment
+    groq_api_key = os.getenv("GROQ_API_KEY")
     
-    # Initialize Ollama LLM with optimized settings for extraction
-    llm = Ollama(
-        model=Config.LLM_MODEL,
+    if not groq_api_key:
+        raise ValueError(
+            "GROQ_API_KEY not found. Please set it in your .env file or Streamlit secrets.\n"
+            "Get your API key from: https://console.groq.com/keys"
+        )
+    
+    logger.info("Using Groq model: llama-3.3-70b-versatile for document analysis")
+    
+    # Initialize Groq LLM (works in cloud and very fast!)
+    llm = ChatGroq(
+        model="llama-3.3-70b-versatile",  # Latest Groq model - fast and accurate
         temperature=0.1,  # Low temperature for accurate extraction
-        num_predict=600,   # More tokens for detailed lists
+        max_tokens=600,   # More tokens for detailed lists
+        groq_api_key=os.getenv("GROQ_API_KEY")
     )
     
     # Enhanced prompt template focused on extraction
@@ -76,23 +87,23 @@ ANSWER:"""
         | StrOutputParser()
     )
     
-    logger.info("✅ Created RAG chain with Ollama")
+    logger.info("Created RAG chain with Groq")
     
     # Wrapper to match interface and add logging
-    class OllamaRAGChain:
+    class GroqRAGChain:
         def __init__(self, chain):
             self.chain = chain
             
         def invoke(self, inputs):
             question = inputs.get("input", "")
             try:
-                logger.info(f"🔍 Processing question: {question}")
+                logger.info(f"Processing question: {question}")
                 answer = self.chain.invoke(question)
-                logger.info(f"✅ Generated answer (length: {len(answer)} chars)")
+                logger.info(f"Generated answer (length: {len(answer)} chars)")
                 logger.info(f"Answer preview: {answer[:200]}...")
                 return {"answer": answer}
             except Exception as e:
-                logger.error(f"❌ Error processing question: {e}", exc_info=True)
+                logger.error(f"Error processing question: {e}", exc_info=True)
                 return {"answer": f"Error processing your question: {str(e)}"}
     
-    return OllamaRAGChain(rag_chain)
+    return GroqRAGChain(rag_chain)
