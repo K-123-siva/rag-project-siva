@@ -104,3 +104,4 @@ if prompt := st.chat_input("Ask a question about the PDFs"):
             except Exception as e:
                 logger.error(f"Error: {str(e)}", exc_info=True)
                 st.error(f"Error: {str(e)}")
+ 
