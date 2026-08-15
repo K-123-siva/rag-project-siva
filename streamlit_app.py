@@ -17,7 +17,7 @@ st.set_page_config(
     page_title="NeuroQuery - AI Document Assistant",
     page_icon="🧠",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto"
 )
 
 st.markdown("""
@@ -30,27 +30,47 @@ header {visibility: hidden !important;}
 [data-testid="stToolbar"] {display: none !important;}
 .stDeployButton {display: none !important;}
 
-/* Mobile optimizations - keep sidebar collapsible */
+/* Mobile optimizations */
 @media (max-width: 768px) {
-    /* Make sidebar toggle button more visible */
+    /* Ensure sidebar toggle button is always visible and clickable */
     button[kind="header"] {
+        display: block !important;
+        visibility: visible !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 10px !important;
+        z-index: 999999 !important;
         background-color: #0068c9 !important;
         color: white !important;
-        border-radius: 4px !important;
-        padding: 8px 12px !important;
-        font-size: 16px !important;
+        border-radius: 6px !important;
+        padding: 10px 14px !important;
+        font-size: 18px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
     }
     
-    /* Ensure sidebar works properly when expanded */
-    section[data-testid="stSidebar"][aria-expanded="true"] {
+    /* Make sidebar full width when expanded on mobile */
+    section[data-testid="stSidebar"] {
         width: 100% !important;
         max-width: 100% !important;
     }
     
+    section[data-testid="stSidebar"][aria-expanded="true"] {
+        display: block !important;
+        visibility: visible !important;
+    }
+    
     /* Better spacing for mobile */
     .main .block-container {
-        padding-top: 1rem;
+        padding-top: 3rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
         padding-bottom: 5rem;
+    }
+    
+    /* Ensure chat input is visible */
+    .stChatFloatingInputContainer {
+        bottom: 0 !important;
+        position: fixed !important;
     }
 }
 </style>
