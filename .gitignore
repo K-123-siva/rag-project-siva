@@ -45,4 +45,4 @@ extract_pdf.py
 test_extraction.py
 
 # Streamlit
-.streamlit/
+# .streamlit/
