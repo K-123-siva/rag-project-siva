@@ -16,19 +16,81 @@ load_dotenv()
 st.set_page_config(
     page_title="NeuroQuery - AI Document Assistant",
     page_icon="🧠",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
+/* Hide Streamlit branding */
 #MainMenu {visibility: hidden !important;}
 footer {visibility: hidden !important;}
 header {visibility: hidden !important;}
 [data-testid="stHeader"] {display: none !important;}
 [data-testid="stToolbar"] {display: none !important;}
 .stDeployButton {display: none !important;}
+
+/* Force sidebar to always be visible on mobile */
+@media (max-width: 768px) {
+    /* Show sidebar */
+    [data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        position: relative !important;
+        width: 100% !important;
+        min-height: auto !important;
+        transform: none !important;
+        margin-left: 0 !important;
+        z-index: 999999 !important;
+    }
+    
+    /* Ensure sidebar content is visible */
+    section[data-testid="stSidebar"] {
+        display: block !important;
+        visibility: visible !important;
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+    }
+    
+    section[data-testid="stSidebar"] > div {
+        width: 100% !important;
+        display: block !important;
+        visibility: visible !important;
+    }
+    
+    /* Make sidebar content stack on top */
+    section[data-testid="stSidebar"] .css-1d391kg,
+    section[data-testid="stSidebar"] [data-testid="stSidebarContent"] {
+        width: 100% !important;
+        display: block !important;
+    }
+    
+    /* Hide hamburger menu button if it interferes */
+    button[kind="header"] {
+        display: none !important;
+    }
+    
+    /* Ensure main content appears below sidebar */
+    .main .block-container {
+        margin-top: 2rem;
+    }
+}
 </style>
+
+<script>
+// Force sidebar to be visible on mobile
+if (window.innerWidth <= 768) {
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.querySelector('[data-testid="stSidebar"]');
+        if (sidebar) {
+            sidebar.style.display = 'block';
+            sidebar.style.visibility = 'visible';
+        }
+    });
+}
+</script>
 """, unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
@@ -104,4 +166,3 @@ if prompt := st.chat_input("Ask a question about the PDFs"):
             except Exception as e:
                 logger.error(f"Error: {str(e)}", exc_info=True)
                 st.error(f"Error: {str(e)}")
- 
