@@ -112,3 +112,5 @@ if prompt := st.chat_input("Ask a question about the PDFs"):
             except Exception as e:
                 logger.error(f"Error generating answer: {str(e)}", exc_info=True)
                 st.error(f"Error generating answer: {str(e)}")
+
+# Force update - hide all Streamlit UI elements
