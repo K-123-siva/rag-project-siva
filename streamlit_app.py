@@ -104,12 +104,23 @@ with st.sidebar:
                 pdf_paths = save_uploaded_files(uploaded_files)
                 vectorstore = process_pdfs(pdf_paths)
                 retriever = get_retriever(vectorstore)
-                rag_chain = create_rag_chain(retriever)
-                st.session_state.vectorstore = vectorstore
-                st.session_state.rag_chain = rag_chain
-                st.session_state.processed_files = [f.name for f in uploaded_files]
-                logger.info("RAG chain created successfully")
-                st.success("PDFs processed successfully!")
+                
+                # Try to create RAG chain and catch model deprecation errors
+                try:
+                    rag_chain = create_rag_chain(retriever)
+                    st.session_state.vectorstore = vectorstore
+                    st.session_state.rag_chain = rag_chain
+                    st.session_state.processed_files = [f.name for f in uploaded_files]
+                    logger.info("RAG chain created successfully")
+                    st.success("PDFs processed successfully!")
+                except ValueError as ve:
+                    # Check if it's a model deprecation error
+                    if "DEPRECATED" in str(ve) or "not available" in str(ve).lower():
+                        st.error("⚠️ Model Configuration Error")
+                        st.warning(str(ve))
+                        st.info("The application needs to be updated to use current Groq models. Please contact the administrator.")
+                    else:
+                        raise ve
         except Exception as e:
             st.error(f"Error: {str(e)}")
             logger.error(f"Error: {str(e)}", exc_info=True)

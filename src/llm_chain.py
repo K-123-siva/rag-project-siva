@@ -5,11 +5,86 @@ from langchain_core.output_parsers import StrOutputParser
 from src.config import Config
 from src.logger import setup_logger
 import os
+from datetime import datetime
 
 logger = setup_logger(__name__)
 
+# FREE MODELS AVAILABLE ON GROQ (Developer Tier - No Cost)
+# Note: openai/gpt-oss models are FREE and open-source, despite the "openai" prefix
+# These are NOT OpenAI's proprietary models - they're open-source alternatives
+FREE_MODELS = {
+    "openai/gpt-oss-20b": {
+        "name": "GPT OSS 20B (FREE)", 
+        "available": True,
+        "cost": "FREE",
+        "speed": "1000 t/s",
+        "context": 131072,
+        "note": "Open-source, fast, FREE for all users"
+    },
+    "openai/gpt-oss-120b": {
+        "name": "GPT OSS 120B (FREE)",
+        "available": True,
+        "cost": "FREE",
+        "speed": "500 t/s",
+        "context": 131072,
+        "note": "Open-source, more capable, FREE for all users"
+    }
+}
+
+# DEPRECATED/ENTERPRISE-ONLY MODELS
+DEPRECATED_MODELS = {
+    "llama-3.3-70b-versatile": {
+        "name": "Llama 3.3 70B Versatile",
+        "available": False,
+        "deprecated_date": "2026-06-17",
+        "replacement": "openai/gpt-oss-120b",
+        "reason": "Moved to Enterprise tier only (requires paid plan). FREE alternative: openai/gpt-oss-120b or openai/gpt-oss-20b"
+    },
+    "llama-3.1-8b-instant": {
+        "name": "Llama 3.1 8B Instant",
+        "available": False,
+        "deprecated_date": "2026-06-17",
+        "replacement": "openai/gpt-oss-20b",
+        "reason": "Deprecated. FREE alternative: openai/gpt-oss-20b"
+    }
+}
+
+def check_model_availability(model_id):
+    """Check if a model is available and return status message"""
+    
+    # Check if it's a FREE model
+    if model_id in FREE_MODELS:
+        model_data = FREE_MODELS[model_id]
+        if model_data["available"]:
+            return True, None
+    
+    # Check if it's deprecated
+    if model_id in DEPRECATED_MODELS:
+        model_data = DEPRECATED_MODELS[model_id]
+        dep_date = model_data.get("deprecated_date", "Unknown")
+        replacement = model_data.get("replacement", "openai/gpt-oss-20b")
+        reason = model_data.get("reason", "Model no longer available")
+        
+        warning_msg = f"""
+⚠️ MODEL NOT AVAILABLE ⚠️
+Model: {model_data['name']} ({model_id})
+Status: {reason}
+Deprecated on: {dep_date}
+
+✅ FREE ALTERNATIVE: {replacement}
+   • 100% FREE (no cost per token)
+   • Available on Developer tier
+   • Open-source model
+
+For current FREE models, visit: https://console.groq.com/docs/models
+"""
+        return False, warning_msg
+    
+    # Unknown model - let it try
+    return True, None
+
 def create_rag_chain(retriever):
-    """Create RAG chain using Groq for fast cloud deployment"""
+    """Create RAG chain using FREE Groq models"""
     
     # Get Groq API key from environment
     groq_api_key = os.getenv("GROQ_API_KEY")
@@ -17,18 +92,46 @@ def create_rag_chain(retriever):
     if not groq_api_key:
         raise ValueError(
             "GROQ_API_KEY not found. Please set it in your .env file or Streamlit secrets.\n"
-            "Get your API key from: https://console.groq.com/keys"
+            "Get your FREE API key from: https://console.groq.com/keys"
         )
     
-    logger.info("Using Groq model: llama-3.3-70b-versatile for document analysis")
+    # PRIMARY FREE MODEL: openai/gpt-oss-20b
+    # Note: Despite the "openai" prefix, this is a FREE open-source model
+    # It's NOT OpenAI's proprietary model - it's available at no cost
+    model_id = "openai/gpt-oss-20b"
     
-    # Initialize Groq LLM (works in cloud and very fast!)
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",  # Latest Groq model - fast and accurate
-        temperature=0.1,  # Low temperature for accurate extraction
-        max_tokens=600,   # More tokens for detailed lists
-        groq_api_key=os.getenv("GROQ_API_KEY")
-    )
+    # Check model availability
+    is_available, warning_msg = check_model_availability(model_id)
+    
+    if not is_available:
+        logger.warning(warning_msg)
+        raise ValueError(warning_msg)
+    
+    logger.info(f"Using FREE Groq model: {model_id}")
+    logger.info("Model: GPT OSS 20B (Open-source, not OpenAI proprietary)")
+    logger.info("Cost: FREE | Speed: 1000 t/s | Context: 131K tokens")
+    
+    # Initialize Groq LLM with FREE model
+    try:
+        llm = ChatGroq(
+            model=model_id,  # FREE open-source model
+            temperature=0.1,  # Low temperature for accurate extraction
+            max_tokens=600,   # More tokens for detailed lists
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
+        logger.info(f"✓ Successfully initialized FREE Groq model: {model_id}")
+    except Exception as e:
+        logger.error(f"Failed to initialize model {model_id}: {e}")
+        logger.info("Attempting fallback to openai/gpt-oss-120b (also FREE)...")
+        
+        # Fallback to another FREE model
+        llm = ChatGroq(
+            model="openai/gpt-oss-120b",  # Also FREE
+            temperature=0.1,
+            max_tokens=600,
+            groq_api_key=os.getenv("GROQ_API_KEY")
+        )
+        logger.info("✓ Using fallback FREE model: openai/gpt-oss-120b")
     
     # Enhanced prompt template focused on extraction
     template = """You are an AI assistant that extracts information from documents accurately.
